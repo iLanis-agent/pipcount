@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PipCount: backgammon race and dice odds</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f6f2ea;color:#33291d;min-height:100vh;padding:24px 14px;display:flex;justify-content:center}
+main{width:100%;max-width:560px}
+h1{font-size:22px;margin-bottom:2px}
+.sub{color:#8a7a63;font-size:13px;margin-bottom:18px}
+.card{background:#fffdf8;border-radius:14px;box-shadow:0 6px 24px rgba(90,70,40,.09);padding:20px;margin-bottom:16px}
+label{font-size:12px;font-weight:600;color:#8a7a63;display:block;margin:10px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+input,select{width:100%;padding:10px 12px;border:1.5px solid #ddd2bf;border-radius:9px;font-size:16px;font-family:inherit;background:#fff}
+input:focus,select:focus{outline:none;border-color:#a8662f}
+.result{margin-top:14px;padding:14px;border-radius:10px;background:#f6ecdb;display:none}
+.result.show{display:block}
+.big{font-size:18px;font-weight:700;color:#8a4d12}
+.kv{font-size:13px;color:#5c4f3d;margin-top:4px;line-height:1.5}
+.row2{display:flex;gap:10px}.row2>div{flex:1}
+a{color:#8a4d12;text-decoration:none}
+footer{font-size:12px;color:#a3937c;text-align:center;margin-top:6px}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+td,th{padding:5px 4px;text-align:left;border-bottom:1px solid #e8dcc8}
+.mono{font-variant-numeric:tabular-nums;font-size:13px;color:#5c4f3d}
+</style>
+</head>
+<body>
+<main>
+<h1>PipCount</h1>
+<p class="sub">Backgammon race math and honest dice odds</p>
+<div class="card">
+<label>Pip count (24 points, checkers per point)</label>
+<div class="row2">
+<div><label for="c1">Your counts</label><input id="c1" value="0 0 0 0 0 5 0 3 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 2"></div>
+</div>
+<div class="row2">
+<div><label for="c2">Opponent counts</label><input id="c2" value="0 0 0 0 0 5 0 3 0 0 0 0 5 0 0 0 0 0 0 0 0 0 0 2"></div>
+</div>
+<div class="result" id="race"></div>
+</div>
+<div class="card">
+<label>Hit odds by distance</label>
+<div id="hits"></div>
+</div>
+<div class="card">
+<label>Entering from the bar</label>
+<div class="row2">
+<div><label for="open">Open home points (0-6)</label><select id="open"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+</div>
+<div class="result" id="bar"></div>
+</div>
+<footer>Cube advice is the 8-9-12 race rule of thumb - races only, no contact. <a href="index.html">About</a></footer>
+</main>
+<script src="engine.js"></script>
+<script>
+var $=function(id){return document.getElementById(id)};
+function parseCounts(s){
+  var parts=String(s).trim().split(/[\s,]+/).filter(Boolean).map(Number);
+  if(parts.length!==24||parts.some(function(p){return !(p>=0);}))return null;
+  return parts;
+}
+function race(){
+  var a=parseCounts($('c1').value),b=parseCounts($('c2').value);
+  var box=$('race');
+  if(!a||!b){box.classList.remove('show');return;}
+  var pa=PipCount.pips(a),pb=PipCount.pips(b);
+  box.classList.add('show');
+  var h='<div class="big">'+pa+' vs '+pb+' pips</div>';
+  if(pa<pb){
+    var adv=PipCount.cubeAdvice(pa,pb);
+    h+='<div class="kv">You lead by '+(pb-pa)+' ('+adv.deficitPct+'%). '+
+      (adv.double?'Double is on. ':'No double yet. ')+
+      (adv.redouble?'It is also a redouble.':'')+
+      ' Opponent '+(adv.take?'should take.':'should drop.')+'</div>';
+  }else if(pb<pa){
+    var adv2=PipCount.cubeAdvice(pb,pa);
+    h+='<div class="kv">You trail by '+(pa-pb)+' ('+adv2.deficitPct+'%). '+
+      'If opponent doubles, you '+(adv2.take?'take.':'drop.')+'</div>';
+  }else h+='<div class="kv">Dead even race.</div>';
+  h+='<div class="kv">Checkers: '+PipCount.checkers(a)+' vs '+PipCount.checkers(b)+'</div>';
+  box.innerHTML=h;
+}
+var ht='<table><tr><th>Distance</th><th>Rolls /36</th><th>Odds</th></tr>';
+for(var d=1;d<=24;d++){
+  var c=PipCount.hitCount(d);
+  ht+='<tr><td>'+d+'</td><td>'+c+'</td><td>'+Math.round(c/36*1000)/10+'%</td></tr>';
+}
+$('hits').innerHTML=ht+'</table>';
+function bar(){
+  var op=parseInt($('open').value,10);
+  var c=PipCount.enterCount(op);
+  var box=$('bar');
+  box.classList.add('show');
+  box.innerHTML='<div class="big">'+c+' of 36 rolls enter ('+Math.round(c/36*1000)/10+'%)</div>'+
+   '<div class="kv">With '+op+' open home '+(op===1?'point':'points')+'. Doubles count once each; entering uses either die.</div>';
+}
+$('c1').addEventListener('input',race);
+$('c2').addEventListener('input',race);
+$('open').addEventListener('change',bar);
+race();bar();
+</script>
+</body>
+</html>
